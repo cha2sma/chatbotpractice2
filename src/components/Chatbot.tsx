@@ -5,6 +5,15 @@ import type { Message } from '../types';
 import { SYSTEM_PROMPT } from '../constants';
 import { fetchChatResponseStream } from '../api/chat';
 
+const TOPICS = [
+  '일상 회화',
+  '비즈니스 영어',
+  '공항/여행 영어',
+  '토익/수능 필수 단어',
+];
+
+const DIFFICULTIES = ['초급', '중급', '고급'];
+
 const Chatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: '안녕하세요! 영어 단어 학습 도우미입니다. 어떤 주제나 난이도로 공부하고 싶으신가요?' },
@@ -12,6 +21,9 @@ const Chatbot: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 추천 단계 제어 상태
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -21,14 +33,17 @@ const Chatbot: React.FC = () => {
     }
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (customInput?: string) => {
+    const textToSend = customInput || input;
+    if (!textToSend.trim() || isLoading) return;
 
-    const userMessage: Message = { role: 'user', content: input };
+    const userMessage: Message = { role: 'user', content: textToSend };
     const newMessages = [...messages, userMessage];
     
     setMessages(newMessages);
-    setInput('');
+    if (!customInput) {
+      setInput('');
+    }
     setIsLoading(true);
     setError(null);
 
@@ -65,6 +80,21 @@ const Chatbot: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSelectTopic = (topic: string) => {
+    setSelectedTopic(topic);
+  };
+
+  const handleSelectDifficulty = async (difficulty: string) => {
+    if (!selectedTopic) return;
+    const promptText = `주제: ${selectedTopic}\n난이도: ${difficulty}\n\n위 조건에 맞는 영어 단어 퀴즈를 시작해줘.`;
+    setSelectedTopic(null);
+    await handleSend(promptText);
+  };
+
+  const handleResetSelection = () => {
+    setSelectedTopic(null);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -113,6 +143,49 @@ const Chatbot: React.FC = () => {
         {error && <div className={styles.error}>{error}</div>}
       </div>
 
+      {/* 추천 버튼 영역 */}
+      {!isLoading && (
+        <div className={styles.suggestions}>
+          {!selectedTopic ? (
+            <>
+              <span className={styles.suggestionTitle}>💡 공부하고 싶은 주제를 선택해보세요:</span>
+              <div className={styles.suggestionButtons}>
+                {TOPICS.map((topic) => (
+                  <button
+                    key={topic}
+                    className={styles.suggestionButton}
+                    onClick={() => handleSelectTopic(topic)}
+                  >
+                    {topic}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <span className={styles.suggestionTitle}>⚡ 난이도를 선택해 퀴즈를 시작해보세요 ({selectedTopic}):</span>
+              <div className={styles.suggestionButtons}>
+                {DIFFICULTIES.map((difficulty) => (
+                  <button
+                    key={difficulty}
+                    className={styles.suggestionButton}
+                    onClick={() => handleSelectDifficulty(difficulty)}
+                  >
+                    {difficulty}
+                  </button>
+                ))}
+                <button
+                  className={styles.resetButton}
+                  onClick={handleResetSelection}
+                >
+                  이전으로
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       <div className={styles.inputArea}>
         <input
           type="text"
@@ -125,7 +198,7 @@ const Chatbot: React.FC = () => {
         />
         <button
           className={styles.sendButton}
-          onClick={handleSend}
+          onClick={() => handleSend()}
           disabled={isLoading || !input.trim()}
         >
           <Send size={20} />
