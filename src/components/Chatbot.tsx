@@ -97,6 +97,13 @@ const Chatbot: React.FC = () => {
     setSelectedTopic(null);
   };
 
+  // 마지막 assistant 메시지의 내용을 확인하여 퀴즈 시작 버튼 노출 여부 결정
+  const lastMessage = messages[messages.length - 1];
+  const showQuizStartButton = 
+    lastMessage && 
+    lastMessage.role === 'assistant' && 
+    lastMessage.content.includes('퀴즈 시작');
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -146,7 +153,19 @@ const Chatbot: React.FC = () => {
       {/* 추천 버튼 영역 */}
       {!isLoading && (
         <div className={styles.suggestions}>
-          {!selectedTopic ? (
+          {showQuizStartButton ? (
+            <>
+              <span className={styles.suggestionTitle}>📝 단어 학습이 끝났다면 퀴즈에 도전해보세요:</span>
+              <div className={styles.suggestionButtons}>
+                <button
+                  className={styles.suggestionButton}
+                  onClick={() => handleSend('퀴즈 시작')}
+                >
+                  📝 퀴즈 시작
+                </button>
+              </div>
+            </>
+          ) : !selectedTopic ? (
             <>
               <span className={styles.suggestionTitle}>💡 공부하고 싶은 주제를 선택해보세요:</span>
               <div className={styles.suggestionButtons}>
