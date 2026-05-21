@@ -34,13 +34,34 @@ export default async function handler(req: Request) {
         content: m.content,
       })),
       max_tokens: 500,
+      stream: true,
     });
 
-    const content = response.choices[0]?.message?.content || '죄송합니다. 답변을 생성하지 못했습니다.';
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of response) {
+            const content = chunk.choices[0]?.delta?.content || '';
+            if (content) {
+              controller.enqueue(encoder.encode(content));
+            }
+          }
+        } catch (err) {
+          controller.error(err);
+        } finally {
+          controller.close();
+        }
+      },
+    });
 
-    return new Response(JSON.stringify({ content }), {
+    return new Response(stream, {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
     });
   } catch (error: any) {
     console.error('OpenAI API Error:', error);

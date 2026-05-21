@@ -3,7 +3,7 @@ import { Send, Bot, User, Loader2 } from 'lucide-react';
 import styles from './Chatbot.module.css';
 import type { Message } from '../types';
 import { SYSTEM_PROMPT } from '../constants';
-import { fetchChatResponse } from '../api/chat';
+import { fetchChatResponseStream } from '../api/chat';
 
 const Chatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
@@ -39,14 +39,28 @@ const Chatbot: React.FC = () => {
         ...newMessages,
       ];
 
-      const response = await fetchChatResponse({ messages: apiMessages as Message[] });
-
-      if (response.error) {
-        setError(response.error);
-      } else {
-        setMessages((prev) => [...prev, { role: 'assistant', content: response.content }]);
-      }
+      await fetchChatResponseStream(
+        { messages: apiMessages as Message[] },
+        () => {
+          setIsLoading(false);
+          setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+        },
+        (chunk) => {
+          setMessages((prev) => {
+            const next = [...prev];
+            const lastIndex = next.length - 1;
+            if (lastIndex >= 0 && next[lastIndex].role === 'assistant') {
+              next[lastIndex] = {
+                ...next[lastIndex],
+                content: next[lastIndex].content + chunk,
+              };
+            }
+            return next;
+          });
+        }
+      );
     } catch (err) {
+      console.error(err);
       setError('서버와 통신 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
